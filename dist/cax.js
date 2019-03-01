@@ -318,9 +318,9 @@ var Bitmap = function (_DisplayObject) {
         });
       } else {
         _this.img = _util2.default.isWegame ? wx.createImage() : new window.Image();
-        _this.visible = false;
+
         _this.img.onload = function () {
-          _this.visible = true;
+
           if (!_this.rect) {
             _this.rect = [0, 0, _this.img.width, _this.img.height];
           }
@@ -1296,7 +1296,7 @@ var root = getGlobal();
 exports.default = {
   getImageInWx: getImageInWx,
   root: root,
-  isWeapp: typeof wx !== 'undefined' && !wx.createCanvas,
+  isWeapp: typeof wx !== 'undefined' && !wx.createCanvas && wx.createCanvasContext,
   isWegame: typeof wx !== 'undefined' && wx.createCanvas
 };
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(25)))
@@ -2739,8 +2739,8 @@ var WeStage = function (_Group) {
 
       var p1 = evt.changedTouches[0];
 
-      evt.stageX = p1.x;
-      evt.stageY = p1.y;
+      evt.stageX = Math.round(p1.x * this.scaleX);
+      evt.stageY = Math.round(p1.y * this.scaleY);
 
       this._getObjectUnderPoint(evt, function (obj) {
         _this2.willDragObject = obj;
@@ -2757,8 +2757,8 @@ var WeStage = function (_Group) {
 
       var p1 = evt.changedTouches[0];
 
-      evt.stageX = p1.x;
-      evt.stageY = p1.y;
+      evt.stageX = Math.round(p1.x * this.scaleX);
+      evt.stageY = Math.round(p1.y * this.scaleY);
 
       this._getObjectUnderPoint(evt, function (obj) {
         var mockEvt = new _event2.default();
@@ -2798,8 +2798,8 @@ var WeStage = function (_Group) {
 
       var p1 = evt.changedTouches[0];
 
-      evt.stageX = p1.x;
-      evt.stageY = p1.y;
+      evt.stageX = Math.round(p1.x * this.scaleX);
+      evt.stageY = Math.round(p1.y * this.scaleY);
 
       var mockEvt = new _event2.default();
       mockEvt.stageX = evt.stageX;
@@ -2903,7 +2903,11 @@ var RoundedRect = function (_Shape) {
     var _this = _possibleConstructorReturn(this, (RoundedRect.__proto__ || Object.getPrototypeOf(RoundedRect)).call(this));
 
     _this.option = Object.assign({
-      lineWidth: 1
+      lineWidth: 1,
+      lt: true,
+      rt: true,
+      lb: true,
+      rb: true
     }, option);
     _this.r = r || 0;
     _this.width = width;
@@ -2932,10 +2936,29 @@ var RoundedRect = function (_Shape) {
       this.beginPath();
 
       this.moveTo(ax, ay);
-      this.arcTo(bx, by, cx, cy, r);
-      this.arcTo(cx, cy, dx, dy, r);
-      this.arcTo(dx, dy, ex, ey, r);
-      this.arcTo(ex, ey, ax, ay, r);
+      if (this.option.rt) {
+        this.arcTo(bx, by, cx, cy, r);
+      } else {
+        this.lineTo(bx, by);
+      }
+
+      if (this.option.rb) {
+        this.arcTo(cx, cy, dx, dy, r);
+      } else {
+        this.lineTo(cx, cy);
+      }
+
+      if (this.option.lb) {
+        this.arcTo(dx, dy, ex, ey, r);
+      } else {
+        this.lineTo(dx, dy);
+      }
+
+      if (this.option.lt) {
+        this.arcTo(ex, ey, ax, ay, r);
+      } else {
+        this.lineTo(ex, ey);
+      }
 
       if (this.option.fillStyle) {
         this.closePath();
@@ -3105,8 +3128,10 @@ var cax = {
   _to2.default.easing[itemLower + 'InOut'] = _tween2.default.Easing[item].InOut;
 });
 
+var isWegame = typeof wx !== 'undefined' && wx.createCanvas;
+
 cax.loadImg = function (option) {
-  var img = new Image();
+  var img = isWegame ? wx.createImage() : new Image();
   img.onload = function () {
     option.complete(this);
   };
@@ -3118,7 +3143,7 @@ cax.loadImgs = function (option) {
   var loaded = 0;
   var len = option.imgs.length;
   option.imgs.forEach(function (src, index) {
-    var img = new Image();
+    var img = isWegame ? wx.createImage() : new Image();
     img.onload = function (i, img) {
       return function () {
         result[i] = img;
@@ -3838,8 +3863,13 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 var wegameCanvas = null;
-if (typeof wx !== 'undefined' && wx.createCanvas) {
-  wegameCanvas = wx.createCanvas();
+if (typeof wx !== 'undefined') {
+  // 在开放数据域的环境下，用`wx.getSharedCanvas`创建canvas
+  if (wx.getSharedCanvas) {
+    wegameCanvas = wx.getSharedCanvas();
+  } else if (wx.createCanvas) {
+    wegameCanvas = wx.createCanvas();
+  }
 }
 
 exports.default = wegameCanvas;
@@ -5042,7 +5072,7 @@ var HitRender = function (_Render) {
         }
       }
 
-      if (ctx.getImageData(0, 0, 1, 1).data[3] > 1) {
+      if (ctx.getImageData(0, 0, 1, 1).data[3] > 0) {
         this._dispatchEvent(o, evt);
         return o;
       }
@@ -6056,7 +6086,7 @@ var Button = function (_Group) {
     } else if (option.bgColor || option.borderColor) {
       _this.roundedRect = new _roundedRect2.default(option.width, option.autoHeight ? Math.max(textHeight, option.height) : option.height, option.borderRadius, {
         strokeStyle: option.borderColor || 'black',
-        fillStyle: option.backgroundColor || '#F5F5F5'
+        fillStyle: option.bgColor || '#F5F5F5'
       });
       _this.add(_this.roundedRect);
     }
@@ -6153,6 +6183,9 @@ var Rect = function (_Shape) {
 
       if (this.option.strokeStyle) {
         this.strokeStyle(this.option.strokeStyle);
+        if (typeof this.option.lineWidth === 'number') {
+          this.lineWidth(this.option.lineWidth);
+        }
         this.strokeRect(0, 0, this.width, this.height);
       }
     }
